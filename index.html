@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detector de Gastos Hormiga - Comparación Visual</title>
+    <style>
+        :root {
+            --primary: #2ecc71;
+            --danger: #e74c3c;
+            --warning: #f1c40f;
+            --dark: #2c3e50;
+            --light: #f5f6fa;
+            --ghost: rgba(255, 255, 255, 0.15);
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--dark);
+            color: var(--light);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            background: #34495e;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            width: 100%;
+            max-width: 480px;
+        }
+        h1 {
+            text-align: center;
+            font-size: 24px;
+            margin-top: 0;
+        }
+        .setup-section, .tracking-section {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .tracking-section { display: none; }
+        
+        input, button {
+            padding: 12px;
+            border-radius: 8px;
+            border: none;
+            font-size: 16px;
+        }
+        input { background: #ecf0f1; color: #333; }
+        button {
+            background: var(--primary);
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.1s, background 0.3s;
+        }
+        button:hover { background: #27ae60; }
+        button:active { transform: scale(0.98); }
+        button.danger-btn { background: var(--danger); }
+        button.danger-btn:hover { background: #c0392b; }
+        
+        /* Zona de Comparación Visual */
+        .comparison-area {
+            display: flex;
+            background: #2c3e50;
+            border-radius: 10px;
+            border: 3px solid #7f8c8d;
+            padding: 15px;
+            margin: 10px 0;
+            position: relative;
+        }
+
+        /* Cuadrícula de 100 billetes (10x10) */
+        .money-grid {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            gap: 5px;
+            width: 75%;
+        }
+
+        .bill-slot {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 1;
+            font-size: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* El billete fantasma (El "Antes") */
+        .ghost-bill {
+            position: absolute;
+            opacity: 0.15;
+            filter: grayscale(100%);
+            z-index: 1;
+        }
+
+        /* El billete real (El "Después") */
+        .solid-bill {
+            position: absolute;
+            z-index: 2;
+            transition: opacity 0.3s;
+        }
+
+        /* Riel y Flecha Indicadora */
+        .arrow-track {
+            width: 25%;
+            position: relative;
+            border-left: 2px dashed #7f8c8d;
+            margin-left: 15px;
+        }
+        
+        .level-arrow {
+            position: absolute;
+            left: -12px;
+            top: 0%; /* Inicia en 0% (lleno) */
+            transform: translateY(-50%);
+            display: flex;
+            align-items: center;
+            color: var(--primary);
+            font-weight: bold;
+            font-size: 15px;
+            transition: top 0.6s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s;
+            width: max-content;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+            z-index: 10;
+        }
+
+        /* Animaciones */
+        @keyframes crumbleOut {
+            0% { transform: translateY(0) scale(1) rotate(0deg); opacity: 1; }
+            40% { transform: translateY(-10px) scale(1.2) rotate(-15deg); opacity: 1; }
+            100% { transform: translateY(60px) scale(0.2) rotate(45deg); opacity: 0; }
+        }
+        .crumble {
+            animation: crumbleOut 0.7s forwards ease-in;
+        }
+
+        @keyframes shake {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-4px) rotate(-1deg); }
+            50% { transform: translateX(4px) rotate(1deg); }
+            75% { transform: translateX(-4px) rotate(-1deg); }
+            100% { transform: translateX(0); }
+        }
+        .shake-animation { animation: shake 0.4s ease-in-out; }
+        
+        /* Historial */
+        .history {
+            margin-top: 15px;
+            max-height: 120px;
+            overflow-y: auto;
+            font-size: 14px;
+        }
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px;
+            border-bottom: 1px solid #7f8c8d;
+        }
+        .history-item:last-child { border-bottom: none; }
+        .negative-money { color: #ff7675; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="container" id="app">
+    <h1>💸 Mis Ahorros</h1>
+    
+    <!-- Configuración inicial -->
+    <div class="setup-section" id="setupSection">
+        <p style="text-align: center; margin: 0; font-size: 14px;">¿Cuánto dinero tienes ahorrado en total?</p>
+        <input type="number" id="initialAmount" placeholder="Ej. 1000" min="1">
+        <button onclick="startTracking()">Visualizar Ahorros</button>
+    </div>
+
+    <!-- Registro de gastos -->
+    <div class="tracking-section" id="trackingSection">
+        
+        <!-- Área Comparativa: Billetes + Flecha -->
+        <div class="comparison-area" id="moneyContainer">
+            <div class="money-grid" id="moneyGrid">
+                <!-- Generado por JS -->
+            </div>
+            
+            <div class="arrow-track">
+                <div class="level-arrow" id="levelArrow">◀ $0.00</div>
+            </div>
+        </div>
+
+        <input type="text" id="expenseName" placeholder="¿En qué gastaste? (Ej. Snacks, gasolina Hilux)">
+        <input type="number" id="expenseAmount" placeholder="Monto del gasto ($)" min="0.1" step="0.1">
+        
+        <button class="danger-btn" onclick="registerExpense()">Registrar Gasto Hormiga</button>
+
+        <div class="history" id="historyLog"></div>
+        
+        <button style="background: transparent; border: 1px solid #7f8c8d; margin-top: 10px;" onclick="location.reload()">Reiniciar App</button>
+    </div>
+</div>
+
+<script>
+    let totalSavings = 0;
+    let currentSavings = 0;
+    const TOTAL_BILLS = 100; 
+    let solidBillsLeft = TOTAL_BILLS;
+
+    function startTracking() {
+        const input = document.getElementById('initialAmount').value;
+        if (input === "" || input <= 0) {
+            alert("Por favor ingresa un monto inicial válido.");
+            return;
+        }
+        
+        totalSavings = parseFloat(input);
+        currentSavings = totalSavings;
+        
+        const grid = document.getElementById('moneyGrid');
+        grid.innerHTML = '';
+        
+        // Crear 100 ranuras con un billete fantasma (fondo) y uno sólido (frente)
+        for(let i = 0; i < TOTAL_BILLS; i++) {
+            const slot = document.createElement('div');
+            slot.className = 'bill-slot';
+            
+            const ghost = document.createElement('div');
+            ghost.className = 'ghost-bill';
+            ghost.innerText = '💵';
+            
+            const solid = document.createElement('div');
+            solid.className = 'solid-bill';
+            solid.innerText = '💵';
+            solid.id = `bill-${i}`; // ID para ubicarlo fácilmente
+            
+            slot.appendChild(ghost);
+            slot.appendChild(solid);
+            grid.appendChild(slot);
+        }
+        
+        document.getElementById('setupSection').style.display = 'none';
+        document.getElementById('trackingSection').style.display = 'flex';
+        
+        updateVisuals();
+    }
+
+    function registerExpense() {
+        const name = document.getElementById('expenseName').value;
+        const amount = parseFloat(document.getElementById('expenseAmount').value);
+        
+        if (isNaN(amount) || amount <= 0) {
+            alert("Ingresa un monto de gasto válido.");
+            return;
+        }
+        
+        if (amount > currentSavings) {
+            alert("¡Te quedaste sin ahorros!");
+            currentSavings = 0;
+        } else {
+            currentSavings -= amount;
+        }
+        
+        const historyLog = document.getElementById('historyLog');
+        const itemName = name || "Gasto hormiga";
+        historyLog.innerHTML = `
+            <div class="history-item">
+                <span>${itemName}</span>
+                <span class="negative-money">-$${amount.toFixed(2)}</span>
+            </div>
+        ` + historyLog.innerHTML;
+        
+        document.getElementById('expenseName').value = "";
+        document.getElementById('expenseAmount').value = "";
+        
+        const container = document.getElementById('moneyContainer');
+        container.classList.remove('shake-animation');
+        void container.offsetWidth; 
+        container.classList.add('shake-animation');
+        
+        updateVisuals();
+    }
+
+    function updateVisuals() {
+        const percentageLeft = currentSavings / totalSavings;
+        const targetBills = Math.ceil(percentageLeft * TOTAL_BILLS);
+        const billsToRemove = solidBillsLeft - targetBills;
+        
+        // Desmoronar de arriba hacia abajo (índices menores primero)
+        if (billsToRemove > 0) {
+            let removed = 0;
+            // Empezamos a buscar desde el primer billete (0) hasta el 99
+            for (let i = 0; i < TOTAL_BILLS; i++) {
+                const bill = document.getElementById(`bill-${i}`);
+                if (bill && !bill.classList.contains('crumble') && removed < billsToRemove) {
+                    bill.classList.add('crumble');
+                    removed++;
+                }
+            }
+            solidBillsLeft = targetBills;
+        }
+
+        // Actualizar la posición y el texto de la flecha
+        const arrow = document.getElementById('levelArrow');
+        arrow.innerHTML = `◀ $${currentSavings.toFixed(2)}`;
+        
+        // (1 - porcentaje) nos da qué tan abajo debe estar la flecha (0% es arriba, 100% es abajo)
+        const topPosition = (1 - percentageLeft) * 100;
+        arrow.style.top = `${topPosition}%`;
+        
+        if (percentageLeft <= 0.3) {
+            arrow.style.color = 'var(--danger)'; 
+        } else if (percentageLeft <= 0.6) {
+            arrow.style.color = 'var(--warning)'; 
+        } else {
+            arrow.style.color = 'var(--primary)'; 
+        }
+    }
+</script>
+
+</body>
+</html>
